@@ -1,17 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Course, Student, Enrollment
+from .models import Course, Enrollment
 from .serializers import (
     CourseSerializer,
-    StudentSerializer,
     EnrollmentSerializer
 )
-from .permissions import IsAdminOrReadOnly
+from rest_framework.permissions import IsAuthenticated
+
+from .permissions import IsAdminOrReadOnly, IsInstructor, IsStudent
+
 
 
 class CourseListView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
+    # permission_classes = [IsAdminOrReadOnly]
 
     def get(self, request):
         try:
@@ -45,7 +47,7 @@ class CourseListView(APIView):
 
 
 class CourseDetailView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
+    # permission_classes = [IsAdminOrReadOnly]
 
     def get(self, request, pk):
         try:
@@ -102,96 +104,8 @@ class CourseDetailView(APIView):
             )
 
 
-class StudentListView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
 
-    def get(self, request):
-        try:
-            students = Student.objects.all()
-            serializer = StudentSerializer(students, many=True)
-            return Response(serializer.data)
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
     
-    def post(self, request):
-        try:
-            serializer = StudentSerializer(data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(
-                    serializer.data,
-                    status=status.HTTP_201_CREATED
-                )
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class StudentDetailView(APIView):
-    permission_classes = [IsAdminOrReadOnly]
-
-    def get(self, request, pk):
-        try:
-            student = Student.objects.get(pk=pk)
-            serializer = StudentSerializer(student)
-            return Response(serializer.data)
-        except Student.DoesNotExist:
-            return Response(
-                {'error': 'Student not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-            
-    def put(self, request, pk):
-        try:
-            student = Student.objects.get(pk=pk)
-            serializer = StudentSerializer(student, data=request.data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data)
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Student.DoesNotExist:
-            return Response(
-                {'error': 'Student not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def delete(self, request, pk):
-        try:
-            student = Student.objects.get(pk=pk)
-            student.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Student.DoesNotExist:
-            return Response(
-                {'error': 'Student not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
 
 
 class EnrollmentListView(APIView):
@@ -285,3 +199,91 @@ class EnrollmentDetailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
             
+            
+class ContentListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsInstructor]
+
+    def get(self, request):
+        contents = Content.objects.all()
+        serializer = ContentSerializer(contents, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = ContentSerializer(data=request.data)
+        if serializer.is_valid():
+            course = get_object_or_404(Course, pk=request.data.get('course'))
+            serializer.save(course=course)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ContentDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return Content.objects.get(pk=pk)
+        except Content.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk):
+        content = self.get_object(pk)
+        serializer = ContentSerializer(content)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        content = self.get_object(pk)
+        serializer = ContentSerializer(content, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        content = self.get_object(pk)
+        content.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class QuizListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsInstructor]
+
+    def get(self, request):
+        quizzes = Quiz.objects.all()
+        serializer = QuizSerializer(quizzes, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = QuizSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class QuizDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        try:
+            return Quiz.objects.get(pk=pk)
+        except Quiz.DoesNotExist:
+            raise Http404
+
+    def get(self, request, pk):
+        quiz = self.get_object(pk)
+        serializer = QuizSerializer(quiz)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        quiz = self.get_object(pk)
+        serializer = QuizSerializer(quiz, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        quiz = self.get_object(pk)
+        quiz.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

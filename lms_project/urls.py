@@ -38,7 +38,8 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('', include('courses.urls')),  # Include courses app URL
+    path('api/users/', include('users.urls')),  # Include users app URLs
+    path('api/courses/', include('courses.urls')),  # Include courses app URLs
     path('docs/', schema_view.with_ui('swagger',
          cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc',
