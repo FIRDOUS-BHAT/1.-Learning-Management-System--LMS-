@@ -3,3 +3,4 @@ lms_zip.zip
 courses/__pycache__
 courses/migrations
 lms_project/__pycache__
+.env
